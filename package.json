@@ -1,6 +1,6 @@
 {
   "name": "tetris-battle",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Tetris for the terminal, with battles over the LAN, and as a pane inside Claude Code",
   "keywords": [
     "tetris",

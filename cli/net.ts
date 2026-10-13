@@ -1,5 +1,6 @@
+import { promises as dns } from 'node:dns'
 import { createSocket } from 'node:dgram'
-import { createConnection, createServer } from 'node:net'
+import { createConnection, createServer, isIP } from 'node:net'
 import type { Socket } from 'node:net'
 import { networkInterfaces } from 'node:os'
 
@@ -83,9 +84,34 @@ export function listen(port: number, onPeer: (peer: Peer) => void): Promise<List
   })
 }
 
-export function connect(host: string, port: number): Promise<Peer> {
+// The resolvers asked when the system's does not know a name: some home
+// routers answer "not found" for names they should know.
+const PUBLIC_RESOLVERS = ['1.1.1.1', '8.8.8.8']
+
+// The address `host` names: itself when it is one, else what the system's
+// resolver says, else what a public one says.
+export async function addressOf(host: string): Promise<string> {
+  if (isIP(host) !== 0) return host
+  try {
+    return (await dns.lookup(host, { family: 4 })).address
+  } catch (error) {
+    const resolver = new dns.Resolver()
+    resolver.setServers(PUBLIC_RESOLVERS)
+    try {
+      const [address] = await resolver.resolve4(host)
+      if (address !== undefined) return address
+    } catch {
+      // The public resolvers do not know it either: the first error stands.
+    }
+    throw error
+  }
+}
+
+export async function connect(host: string, port: number): Promise<Peer> {
+  const address = await addressOf(host)
+
   return new Promise((resolve, reject) => {
-    const socket = createConnection({ host, port })
+    const socket = createConnection({ host: address, port })
     socket.once('error', reject)
     socket.once('connect', () => {
       socket.off('error', reject)

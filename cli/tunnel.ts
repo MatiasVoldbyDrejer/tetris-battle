@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { connect as dial, createServer } from 'node:net'
 import type { Server, Socket } from 'node:net'
 
+import { addressOf } from './net.ts'
+
 // A way in for friends who are not on this network: the host's battle port
 // forwarded through a relay on the internet, in the protocol of `bore`
 // (https://github.com/ekzhang/bore), so a `bore server` anywhere serves as
@@ -94,7 +96,9 @@ export type Tunnel = {
 // Forwards `localPort` here through the relay at `host`, and resolves once
 // the relay has said which of its ports callers use.
 export async function openTunnel(host: string, localPort: number, controlPort = CONTROL_PORT): Promise<Tunnel> {
-  const control = await connectTo(host, controlPort)
+  // The relay's address, looked up once: every caller's connection goes there too.
+  const address = await addressOf(host)
+  const control = await connectTo(address, controlPort)
   let onClose: ((reason: string) => void) | undefined
   let isOpen = true
   const end = (reason: string): void => {
@@ -155,7 +159,7 @@ export async function openTunnel(host: string, localPort: number, controlPort = 
       let remote: Socket | undefined
       let local: Socket | undefined
       try {
-        remote = await connectTo(host, controlPort)
+        remote = await connectTo(address, controlPort)
         send(remote, { Accept: id })
         local = await connectTo('127.0.0.1', localPort)
         remote.pipe(local)

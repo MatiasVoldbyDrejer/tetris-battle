@@ -1,6 +1,6 @@
 {
   "name": "tetris",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Play Tetris in a pane beside the conversation: /tetris",
   "author": { "name": "mvd" },
   "types": "./types/index.d.ts"
