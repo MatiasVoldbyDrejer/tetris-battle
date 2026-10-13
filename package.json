@@ -1,0 +1,47 @@
+{
+  "name": "tetris-battle",
+  "version": "0.3.0",
+  "description": "Tetris for the terminal, with battles over the LAN, and as a pane inside Claude Code",
+  "keywords": [
+    "tetris",
+    "terminal",
+    "cli",
+    "game",
+    "multiplayer",
+    "lan",
+    "battle",
+    "claude-code"
+  ],
+  "author": "mvd",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MatiasVoldbyDrejer/tetris-battle.git"
+  },
+  "homepage": "https://github.com/MatiasVoldbyDrejer/tetris-battle#readme",
+  "bugs": {
+    "url": "https://github.com/MatiasVoldbyDrejer/tetris-battle/issues"
+  },
+  "type": "module",
+  "bin": {
+    "tetris": "dist/tetris.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "esbuild cli/main.ts --bundle --platform=node --target=node18 --format=esm --outfile=dist/tetris.mjs --banner:js='#!/usr/bin/env node' --legal-comments=none --log-level=warning",
+    "prepublishOnly": "npm run build",
+    "test": "claude plugin test . && node --test \"cli/**/*.spec.ts\"",
+    "typecheck": "tsc -p . && tsc -p cli"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
+}

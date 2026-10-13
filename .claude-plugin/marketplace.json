@@ -1,0 +1,5 @@
+{
+  "name": "tetris-battle",
+  "owner": { "name": "Matias Drejer" },
+  "plugins": [{ "name": "tetris", "source": "./" }]
+}
