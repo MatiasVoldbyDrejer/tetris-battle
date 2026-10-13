@@ -10,6 +10,7 @@ Code. One game, two front ends.
 | A terminal | `npx tetris-battle`, or `tetris` once installed |
 | Against friends | one of you: `tetris host`; the others: `tetris join` |
 | Against the agent | `tetris host --agent`, then enter; `--agent hard` or `--agent easy` |
+| Friends elsewhere | `tetris host --public`; they join the address the lobby shows |
 | Claude Code | `/tetris`, or `/tetris battle` to play against Claude |
 
 ```sh
@@ -29,6 +30,16 @@ else on the same network runs `tetris join`, which finds the game by itself; on 
 keeps machines from calling out to each other, `tetris join 192.168.1.5`. The host presses enter
 to start, and again after a match for the next one. `--name` says who you are, `--minutes` (the
 host's) how long a match is, and `--port` where it is, when the usual port is taken.
+
+`tetris host --public` opens a way in from the internet, for friends who are not on your network:
+the host's port is forwarded through a relay, and the lobby shows the address they join
+(`tetris join bore.pub:23456`). The relay is `bore.pub`, the public one run by the author of
+[bore](https://github.com/ekzhang/bore), whose protocol this speaks; name another after
+`--public` (`tetris host --public relay.example.com`), such as your own: `tetris relay` on any
+machine with a public address runs one (`bore server` does too), handing out ports 20000 to
+20100 unless `--ports` says otherwise, which its firewall has to let through along with the
+control port, 7835. A relay with a secret is not supported. The game itself has no password,
+so anyone with the address can sit in your lobby; it lasts as long as your host does.
 
 `tetris host --agent` puts a computer player in the lobby, so you can start at once and
 challenge it alone, or with friends against it. It plays its own game like everyone else: for each

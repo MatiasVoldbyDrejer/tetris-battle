@@ -34,6 +34,8 @@ import type { Peer } from './net.ts'
 import { VERSION, decodeGrid, encodeGrid, isServerMessage } from './protocol.ts'
 import type { Phase, Standing } from './protocol.ts'
 import { serve } from './server.ts'
+import { CONTROL_PORT, openTunnel } from './tunnel.ts'
+import type { Tunnel } from './tunnel.ts'
 import {
   EMPTY,
   beside,
@@ -77,6 +79,8 @@ const HELP = [
 ] as const
 
 export type Options = { name: string; port: number; minutes: number }
+// Where a battle is reached from the internet, when the host asked for that.
+export type Public = { relay: string; controlPort: number }
 
 type Opponent = { grid: number[][]; status: Status }
 
@@ -99,8 +103,9 @@ export type Match = {
   koAt: number
 }
 
-// Who this player is to the host, and where the host is.
-export type Seat = { name: string; token?: string; place: string; onLeave?: () => void }
+// Who this player is to the host, where the host is, and, when the host
+// opened one, where friends anywhere reach it.
+export type Seat = { name: string; token?: string; place: string; far?: string; onLeave?: () => void }
 
 const at = (address: string, port: number): string => (port === PORT ? address : `${address}:${port}`)
 
@@ -116,10 +121,23 @@ const fail = (message: string): void => {
   process.exitCode = 1
 }
 
-// Hosts a battle here and plays in it, with the agent in it too if asked.
-export async function host(options: Options & { agent?: Level }): Promise<void> {
+// Hosts a battle here and plays in it, with the agent in it too if asked,
+// and a way in from the internet through a relay if asked for that.
+export async function host(options: Options & { agent?: Level; public?: Public }): Promise<void> {
   const token = Math.random().toString(36).slice(2)
   const server = await serve({ ...options, token })
+  let tunnel: Tunnel | undefined
+  if (options.public !== undefined) {
+    const { relay, controlPort } = options.public
+    const where = controlPort === CONTROL_PORT ? relay : `${relay}:${controlPort}`
+    process.stdout.write(`Opening a way in through ${where}…\n`)
+    try {
+      tunnel = await openTunnel(relay, server.port, controlPort)
+    } catch (error) {
+      server.close()
+      throw new Error(`no way in through ${where}: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
   const peer = await connect('127.0.0.1', server.port)
   if (options.agent !== undefined) {
     joinAsAgent(server.port, options.agent).catch(() => {
@@ -128,7 +146,17 @@ export async function host(options: Options & { agent?: Level }): Promise<void> 
   }
   const address = lanAddress()
   const place = address === undefined ? `port ${server.port}` : at(address, server.port)
-  play(peer, { name: options.name, token, place, onLeave: () => server.close() })
+  const far = tunnel === undefined ? undefined : `${tunnel.host}:${tunnel.port}`
+  play(peer, {
+    name: options.name,
+    token,
+    place,
+    far,
+    onLeave: () => {
+      tunnel?.close()
+      server.close()
+    },
+  })
 }
 
 // Joins the battle on the network, or the one at `address` (with a port
@@ -523,8 +551,12 @@ function theirBoard(match: Match, other: Standing, isWide: boolean): Block {
 function lobby(match: Match, seat: Seat): Block {
   const lines: Block = [...centred([big('TETRIS', CYAN), big('BATTLE', ORANGE)]), EMPTY]
   if (match.phase === 'connecting') return [...lines, dim(`Connecting to ${seat.place}…`)]
-  if (match.isHost) lines.push(bold(`Hosting at ${seat.place}`), dim('Friends on this network: tetris join'))
-  else lines.push(bold(`Joined ${seat.place}`))
+  if (match.isHost) {
+    lines.push(bold(`Hosting at ${seat.place}`), dim('Friends on this network: tetris join'))
+    if (seat.far !== undefined) lines.push(dim(`Friends anywhere: tetris join ${seat.far}`))
+  } else {
+    lines.push(bold(`Joined ${seat.place}`))
+  }
   lines.push(EMPTY, dim('Players'))
   for (const player of match.players) {
     lines.push(row(bold(`  ${player.name}`), dim(player.id === match.id ? '  (you)' : '')))
